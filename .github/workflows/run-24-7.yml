@@ -44,7 +44,7 @@ jobs:
               for d in bot1 bot2 bot3; do
                 (
                   cd "$d"
-                  git add shop_data.db products_cache.json *.session 2>/dev/null || true
+                  git add shop_data.db products_cache.json 2>/dev/null || true
                   if ! git diff --cached --quiet; then
                     git commit -m "chore: auto-save shop_data.db [skip ci]" || true
                     git pull --rebase origin main || true
@@ -55,6 +55,20 @@ jobs:
             done
           ) &
           AUTOSAVE_PID=$!
+
+          # Launch Shared Userbot Hub (single Telethon connection for all 3 bots)
+          (
+            export USERBOT_SESSION_PATH="$PWD/bot1/thomap_userbot.session"
+            START_TIME=$SECONDS
+            while [ $((SECONDS - START_TIME)) -lt 19500 ]; do
+              REMAINING=$((19500 - (SECONDS - START_TIME)))
+              if [ $REMAINING -le 0 ]; then break; fi
+              timeout --signal=SIGINT ${REMAINING}s python -X utf8 bot1/userbot_hub.py || true
+              sleep 3
+            done
+          ) &
+
+          sleep 4
 
           # Launch Bot 1, Bot 2, Bot 3 in parallel with auto-restart loops
           for d in bot1 bot2 bot3; do
@@ -75,7 +89,7 @@ jobs:
           for d in bot1 bot2 bot3; do
             (
               cd "$d"
-              git add shop_data.db products_cache.json *.session 2>/dev/null || true
+              git add shop_data.db products_cache.json 2>/dev/null || true
               if ! git diff --cached --quiet; then
                 git commit -m "chore: final save before cycle handoff [skip ci]" || true
                 git pull --rebase origin main || true
