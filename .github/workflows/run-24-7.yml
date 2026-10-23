@@ -1,0 +1,91 @@
+name: Multi-Bot 24/7 Cloud Runner
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '*/30 * * * *'
+
+concurrency:
+  group: multi-bot-24-7-single-instance
+  cancel-in-progress: false
+
+jobs:
+  run-all-bots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone & Start All 3 Bots 24/7
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PYTHONUTF8: "1"
+        run: |
+          git config --global user.name "ShopBot AutoSave"
+          git config --global user.email "bot@users.noreply.github.com"
+
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/canboso-tele-shop-bot.git bot1
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/roboticvn-tele-shop-bot.git bot2
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/qcst-tele-shop-bot.git bot3
+
+          pip install --upgrade pip
+          pip install -r bot1/requirements.txt
+
+          # Auto-save database loop every 180 seconds for all 3 bots
+          (
+            while true; do
+              sleep 180
+              for d in bot1 bot2 bot3; do
+                (
+                  cd "$d"
+                  git add shop_data.db products_cache.json 2>/dev/null || true
+                  if ! git diff --cached --quiet; then
+                    git commit -m "chore: auto-save shop_data.db [skip ci]" || true
+                    git pull --rebase origin main || true
+                    git push origin main || true
+                  fi
+                )
+              done
+            done
+          ) &
+          AUTOSAVE_PID=$!
+
+          # Launch Bot 1, Bot 2, Bot 3 in parallel with auto-restart loops
+          for d in bot1 bot2 bot3; do
+            (
+              cd "$d"
+              START_TIME=$SECONDS
+              while [ $((SECONDS - START_TIME)) -lt 19500 ]; do
+                REMAINING=$((19500 - (SECONDS - START_TIME)))
+                if [ $REMAINING -le 0 ]; then break; fi
+                timeout --signal=SIGINT ${REMAINING}s python -X utf8 bot.py || true
+                sleep 3
+              done
+            ) &
+          done
+
+          sleep 19500
+
+          for d in bot1 bot2 bot3; do
+            (
+              cd "$d"
+              git add shop_data.db products_cache.json 2>/dev/null || true
+              if ! git diff --cached --quiet; then
+                git commit -m "chore: final save before cycle handoff [skip ci]" || true
+                git pull --rebase origin main || true
+                git push origin main || true
+              fi
+            )
+          done
+
+          curl -s -X POST \
+            -H "Authorization: token ${PAT_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/alexandratodika/tele-shop-cloud-runner/actions/workflows/run-24-7.yml/dispatches \
+            -d '{"ref":"main"}' || true
