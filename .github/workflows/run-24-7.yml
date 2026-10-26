@@ -46,7 +46,7 @@ jobs:
               for d in bot1 bot2 bot3 bot4; do
                 (
                   cd "$d"
-                  git add shop_data.db products_cache.json 2>/dev/null || true
+                  git add shop_data.db products_cache.json auto_ads_config.json auto_ads_media.* 2>/dev/null || true
                   if ! git diff --cached --quiet; then
                     git commit -m "chore: auto-save shop_data.db [skip ci]" || true
                     git pull --rebase origin main || true
@@ -91,7 +91,7 @@ jobs:
           for d in bot1 bot2 bot3 bot4; do
             (
               cd "$d"
-              git add shop_data.db products_cache.json 2>/dev/null || true
+              git add shop_data.db products_cache.json auto_ads_config.json auto_ads_media.* 2>/dev/null || true
               if ! git diff --cached --quiet; then
                 git commit -m "chore: final save before cycle handoff [skip ci]" || true
                 git pull --rebase origin main || true
