@@ -22,10 +22,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clone & Start All 3 Bots 24/7
+      - name: Clone & Start All 4 Bots 24/7
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONUTF8: "1"
+          QUIET_STARTUP: "1"
         run: |
           git config --global user.name "ShopBot AutoSave"
           git config --global user.email "bot@users.noreply.github.com"
@@ -33,15 +34,16 @@ jobs:
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/canboso-tele-shop-bot.git bot1
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/roboticvn-tele-shop-bot.git bot2
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/qcst-tele-shop-bot.git bot3
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/gmailsinhvien-tele-shop-bot.git bot4
 
           pip install --upgrade pip
-          pip install -r bot1/requirements.txt
+          pip install -r bot1/requirements.txt -r bot4/requirements.txt
 
-          # Auto-save database loop every 180 seconds for all 3 bots
+          # Auto-save database loop every 180 seconds for all 4 bots
           (
             while true; do
               sleep 180
-              for d in bot1 bot2 bot3; do
+              for d in bot1 bot2 bot3 bot4; do
                 (
                   cd "$d"
                   git add shop_data.db products_cache.json 2>/dev/null || true
@@ -56,7 +58,7 @@ jobs:
           ) &
           AUTOSAVE_PID=$!
 
-          # Launch Shared Userbot Hub (single Telethon connection for all 3 bots)
+          # Launch Shared Userbot Hub (single Telethon connection for supplier bots)
           (
             export USERBOT_SESSION_PATH="$PWD/bot1/thomap_userbot.session"
             START_TIME=$SECONDS
@@ -70,8 +72,8 @@ jobs:
 
           sleep 4
 
-          # Launch Bot 1, Bot 2, Bot 3 in parallel with auto-restart loops
-          for d in bot1 bot2 bot3; do
+          # Launch Bot 1, Bot 2, Bot 3, Bot 4 (@tainguyenregbot) in parallel with auto-restart loops
+          for d in bot1 bot2 bot3 bot4; do
             (
               cd "$d"
               START_TIME=$SECONDS
@@ -86,7 +88,7 @@ jobs:
 
           sleep 19500
 
-          for d in bot1 bot2 bot3; do
+          for d in bot1 bot2 bot3 bot4; do
             (
               cd "$d"
               git add shop_data.db products_cache.json 2>/dev/null || true
