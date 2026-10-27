@@ -52,7 +52,15 @@ jobs:
                 done
                 if ! git diff --cached --quiet; then
                   git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
-                  git pull --rebase origin main || true
+                  if ! git pull --rebase -X ours origin main; then
+                    git rebase --abort 2>/dev/null || true
+                    git fetch origin main || true
+                    git reset --soft origin/main || true
+                    for f in shop_data.db products_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                      if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
+                    done
+                    git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
+                  fi
                   git push origin main || true
                 fi
               )
