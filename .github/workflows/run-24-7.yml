@@ -39,21 +39,31 @@ jobs:
           pip install --upgrade pip
           pip install -r bot1/requirements.txt -r bot4/requirements.txt
 
-          # Auto-save database loop every 180 seconds for all 4 bots
+          save_all_bot_states() {
+            for d in bot1 bot2 bot3 bot4; do
+              (
+                cd "$d"
+                python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db').execute('PRAGMA wal_checkpoint(PASSIVE)')" 2>/dev/null || true
+                shopt -s nullglob
+                for f in shop_data.db products_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                  if [ -f "$f" ]; then
+                    git add -f "$f" 2>/dev/null || true
+                  fi
+                done
+                if ! git diff --cached --quiet; then
+                  git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
+                  git pull --rebase origin main || true
+                  git push origin main || true
+                fi
+              )
+            done
+          }
+
+          # Auto-save database & synced catalog cache loop every 180 seconds for all 4 bots
           (
             while true; do
               sleep 180
-              for d in bot1 bot2 bot3 bot4; do
-                (
-                  cd "$d"
-                  git add shop_data.db products_cache.json auto_ads_config.json auto_ads_media.* 2>/dev/null || true
-                  if ! git diff --cached --quiet; then
-                    git commit -m "chore: auto-save shop_data.db [skip ci]" || true
-                    git pull --rebase origin main || true
-                    git push origin main || true
-                  fi
-                )
-              done
+              save_all_bot_states
             done
           ) &
           AUTOSAVE_PID=$!
@@ -88,17 +98,7 @@ jobs:
 
           sleep 19500
 
-          for d in bot1 bot2 bot3 bot4; do
-            (
-              cd "$d"
-              git add shop_data.db products_cache.json auto_ads_config.json auto_ads_media.* 2>/dev/null || true
-              if ! git diff --cached --quiet; then
-                git commit -m "chore: final save before cycle handoff [skip ci]" || true
-                git pull --rebase origin main || true
-                git push origin main || true
-              fi
-            )
-          done
+          save_all_bot_states
 
           curl -s -X POST \
             -H "Authorization: token ${PAT_TOKEN}" \
