@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clone & Start All 5 Bots 24/7
+      - name: Clone & Start All 6 Bots 24/7
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONUTF8: "1"
@@ -31,17 +31,21 @@ jobs:
           git config --global user.name "ShopBot AutoSave"
           git config --global user.email "bot@users.noreply.github.com"
 
+          sudo curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/canboso-tele-shop-bot.git bot1
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/roboticvn-tele-shop-bot.git bot2
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/qcst-tele-shop-bot.git bot3
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/gmailsinhvien-tele-shop-bot.git bot4
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/skyworld-tele-shop-bot.git bot5
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/domdalton-tele-shop-bot.git bot6
 
           pip install --upgrade pip
-          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt
+          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt -r bot6/requirements.txt
 
           save_all_bot_states() {
-            for d in bot1 bot2 bot3 bot4 bot5; do
+            for d in bot1 bot2 bot3 bot4 bot5 bot6; do
               (
                 cd "$d"
                 python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db').execute('PRAGMA wal_checkpoint(PASSIVE)')" 2>/dev/null || true
@@ -68,7 +72,7 @@ jobs:
             done
           }
 
-          # Auto-save database & synced catalog cache loop every 180 seconds for all 5 bots
+          # Auto-save database & synced catalog cache loop every 180 seconds for all 6 bots
           (
             while true; do
               sleep 180
@@ -91,8 +95,8 @@ jobs:
 
           sleep 4
 
-          # Launch Bot 1, Bot 2, Bot 3, Bot 4, Bot 5 (@chatgptgiahuydiet_bot) in parallel with auto-restart loops
-          for d in bot1 bot2 bot3 bot4 bot5; do
+          # Launch Bot 1..Bot 6 in parallel with auto-restart loops
+          for d in bot1 bot2 bot3 bot4 bot5 bot6; do
             (
               cd "$d"
               START_TIME=$SECONDS
