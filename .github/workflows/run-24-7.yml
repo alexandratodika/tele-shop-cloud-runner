@@ -22,12 +22,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clone & Start All 6 Bots 24/7
+      - name: Clone & Start All 7 Bots 24/7
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONUTF8: "1"
           QUIET_STARTUP: "1"
-          WEBHOOK_HOST: "127.0.0.1"
         run: |
           git config --global user.name "ShopBot AutoSave"
           git config --global user.email "bot@users.noreply.github.com"
@@ -41,41 +40,40 @@ jobs:
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/gmailsinhvien-tele-shop-bot.git bot4
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/skyworld-tele-shop-bot.git bot5
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/domdalton-tele-shop-bot.git bot6
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/hub-tele-shop-bot.git bot7
 
           pip install --upgrade pip
-          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt -r bot6/requirements.txt
+          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt -r bot6/requirements.txt -r bot7/requirements.txt
 
           save_all_bot_states() {
-            for d in bot1 bot2 bot3 bot4 bot5 bot6; do
+            for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7; do
               (
-                cd "$d" || exit 0
-                if [ -f ".git/index.lock" ]; then exit 0; fi
-                python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db', timeout=15.0).execute('PRAGMA wal_checkpoint(TRUNCATE)')" 2>/dev/null || true
-                # Sync ONLY Git index to latest origin/main without touching any live open working-tree files/inodes
-                git fetch origin main 2>/dev/null || true
-                git reset origin/main 2>/dev/null || true
+                cd "$d"
+                python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db').execute('PRAGMA wal_checkpoint(PASSIVE)')" 2>/dev/null || true
                 shopt -s nullglob
-                for f in shop_data.db products_cache.json auto_ads_config.json auto_ads_media.*; do
+                for f in shop_data.db products_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
                     git add -f "$f" 2>/dev/null || true
                   fi
                 done
-                for sf in ads_userbot.session thomap_userbot.session; do
-                  if [ -f "$sf" ] && [ "$(stat -c%s "$sf" 2>/dev/null || echo 0)" -ge 20000 ]; then
-                    git add -f "$sf" 2>/dev/null || true
-                  fi
-                done
                 if ! git diff --cached --quiet; then
                   git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
+                  if ! git pull --rebase -X ours origin main; then
+                    git rebase --abort 2>/dev/null || true
+                    git fetch origin main || true
+                    git reset --soft origin/main || true
+                    for f in shop_data.db products_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                      if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
+                    done
+                    git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
+                  fi
                   git push origin main || true
                 fi
               )
             done
           }
 
-          trap 'save_all_bot_states || true' EXIT INT TERM
-
-          # Auto-save database & synced catalog cache loop every 180 seconds for all 6 bots
+          # Auto-save database & synced catalog cache loop every 180 seconds for all 7 bots
           (
             while true; do
               sleep 180
@@ -98,8 +96,8 @@ jobs:
 
           sleep 4
 
-          # Launch Bot 1..Bot 6 in parallel with auto-restart loops
-          for d in bot1 bot2 bot3 bot4 bot5 bot6; do
+          # Launch Bot 1..Bot 7 in parallel with auto-restart loops
+          for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7; do
             (
               cd "$d"
               START_TIME=$SECONDS
@@ -114,41 +112,8 @@ jobs:
 
           sleep 19500
 
-      - name: Save Final Live State on Exit or Cancel
-        if: always()
-        run: |
-          for d in bot1 bot2 bot3 bot4 bot5 bot6; do
-            if [ -d "$d/.git" ]; then
-              (
-                cd "$d" || exit 0
-                rm -f .git/index.lock 2>/dev/null || true
-                python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db', timeout=15.0).execute('PRAGMA wal_checkpoint(TRUNCATE)')" 2>/dev/null || true
-                git fetch origin main 2>/dev/null || true
-                git reset origin/main 2>/dev/null || true
-                shopt -s nullglob
-                for f in shop_data.db products_cache.json auto_ads_config.json auto_ads_media.*; do
-                  if [ -f "$f" ]; then
-                    git add -f "$f" 2>/dev/null || true
-                  fi
-                done
-                for sf in ads_userbot.session thomap_userbot.session; do
-                  if [ -f "$sf" ] && [ "$(stat -c%s "$sf" 2>/dev/null || echo 0)" -ge 20000 ]; then
-                    git add -f "$sf" 2>/dev/null || true
-                  fi
-                done
-                if ! git diff --cached --quiet; then
-                  git commit -m "chore: final state checkpoint [skip ci]" || true
-                  git push origin main || true
-                fi
-              )
-            fi
-          done
+          save_all_bot_states
 
-      - name: Re-Trigger Next 24/7 Cycle
-        if: success()
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
           curl -s -X POST \
             -H "Authorization: token ${PAT_TOKEN}" \
             -H "Accept: application/vnd.github.v3+json" \
