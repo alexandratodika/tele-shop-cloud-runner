@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clone & Start All 7 Bots 24/7
+      - name: Clone & Start All 8 Bots 24/7
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONUTF8: "1"
@@ -41,17 +41,18 @@ jobs:
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/skyworld-tele-shop-bot.git bot5
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/domdalton-tele-shop-bot.git bot6
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/hub-tele-shop-bot.git bot7
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/unified-tele-shop-bot.git bot8
 
           pip install --upgrade pip
-          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt -r bot6/requirements.txt -r bot7/requirements.txt
+          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt -r bot6/requirements.txt -r bot7/requirements.txt -r bot8/requirements.txt
 
           save_all_bot_states() {
-            for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7; do
+            for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7 bot8; do
               (
                 cd "$d"
                 python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db').execute('PRAGMA wal_checkpoint(PASSIVE)')" 2>/dev/null || true
                 shopt -s nullglob
-                for f in shop_data.db products_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
                     git add -f "$f" 2>/dev/null || true
                   fi
@@ -62,7 +63,7 @@ jobs:
                     git rebase --abort 2>/dev/null || true
                     git fetch origin main || true
                     git reset --soft origin/main || true
-                    for f in shop_data.db products_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                    for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                       if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
                     done
                     git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
@@ -97,7 +98,7 @@ jobs:
           sleep 4
 
           # Launch Bot 1..Bot 7 in parallel with auto-restart loops
-          for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7; do
+          for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7 bot8; do
             (
               cd "$d"
               START_TIME=$SECONDS
