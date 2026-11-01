@@ -50,7 +50,7 @@ jobs:
             for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7 bot8; do
               (
                 cd "$d"
-                python -c "import os, sqlite3; os.path.exists('shop_data.db') and sqlite3.connect('shop_data.db').execute('PRAGMA wal_checkpoint(PASSIVE)')" 2>/dev/null || true
+                python -c "import os, sqlite3; c = sqlite3.connect('shop_data.db', timeout=15) if os.path.exists('shop_data.db') else None; c and (c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close())" 2>/dev/null || true
                 shopt -s nullglob
                 for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
@@ -74,7 +74,7 @@ jobs:
             done
           }
 
-          # Auto-save database & synced catalog cache loop every 180 seconds for all 7 bots
+          # Auto-save database & synced catalog cache loop every 180 seconds for all 8 bots
           (
             while true; do
               sleep 180
@@ -97,7 +97,7 @@ jobs:
 
           sleep 4
 
-          # Launch Bot 1..Bot 7 in parallel with auto-restart loops
+          # Launch Bot 1..Bot 8 in parallel with auto-restart loops
           for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7 bot8; do
             (
               cd "$d"
@@ -111,7 +111,10 @@ jobs:
             ) &
           done
 
-          sleep 19500
+          sleep 19508
+
+          kill "$AUTOSAVE_PID" 2>/dev/null || true
+          wait "$AUTOSAVE_PID" 2>/dev/null || true
 
           save_all_bot_states
 
