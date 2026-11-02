@@ -56,7 +56,7 @@ jobs:
                   if ! git pull --rebase -X ours origin main; then
                     git rebase --abort 2>/dev/null || true
                     git fetch origin main || true
-                    git reset --soft origin/main || true
+                    git reset origin/main || true
                     for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                       if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
                     done
