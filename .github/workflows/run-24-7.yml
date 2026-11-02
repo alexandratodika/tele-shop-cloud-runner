@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clone & Start Kho 8 + Kho 9 + Redirect Bots 24/7
+      - name: Clone & Start Kho 8 + Kho 9 + Ung Ho Sinh Vien + Redirect Bots 24/7
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONUTF8: "1"
@@ -36,31 +36,38 @@ jobs:
 
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/unified-tele-shop-bot.git bot8
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/kho9-tele-shop-bot.git bot9
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/unghosinhvien-tele-bot.git bot10
 
           pip install --upgrade pip
-          pip install -r bot8/requirements.txt -r bot9/requirements.txt
+          pip install -r bot8/requirements.txt -r bot9/requirements.txt -r bot10/requirements.txt
 
           save_all_bot_states() {
-            for d in bot8 bot9; do
+            for d in bot8 bot9 bot10; do
               (
                 cd "$d"
-                python -c "import os, sqlite3; c = sqlite3.connect('shop_data.db', timeout=15) if os.path.exists('shop_data.db') else None; c and (c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close())" 2>/dev/null || true
+                python -c "import os, sqlite3
+for dbn in ('shop_data.db', 'ungho_data.db'):
+    if os.path.exists(dbn):
+        c = sqlite3.connect(dbn, timeout=15)
+        c.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+        c.close()
+" 2>/dev/null || true
                 shopt -s nullglob
-                for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                for f in shop_data.db ungho_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
                     git add -f "$f" 2>/dev/null || true
                   fi
                 done
                 if ! git diff --cached --quiet; then
-                  git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
+                  git commit -m "chore: auto-save db & cache [skip ci]" || true
                   if ! git pull --rebase -X ours origin main; then
                     git rebase --abort 2>/dev/null || true
                     git fetch origin main || true
                     git reset origin/main || true
-                    for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                    for f in shop_data.db ungho_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                       if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
                     done
-                    git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
+                    git commit -m "chore: auto-save db & cache [skip ci]" || true
                   fi
                   git push origin main || true
                 fi
@@ -68,7 +75,7 @@ jobs:
             done
           }
 
-          # Auto-save database & synced catalog cache loop every 180 seconds for bot8 & bot9
+          # Auto-save database & synced catalog cache loop every 180 seconds for bot8, bot9 & bot10
           (
             while true; do
               sleep 180
@@ -76,6 +83,20 @@ jobs:
             done
           ) &
           AUTOSAVE_PID=$!
+
+          # Hot-sync .env for bot10 every 20 seconds while BOT_TOKEN is not yet filled
+          (
+            cd bot10
+            while true; do
+              if grep -qE '^BOT_TOKEN=.+$' .env 2>/dev/null; then
+                break
+              fi
+              sleep 20
+              git fetch origin main 2>/dev/null || true
+              git checkout origin/main -- .env 2>/dev/null || true
+            done
+          ) &
+          HOTSYNC_PID=$!
 
           # Launch Shared Userbot Hub (single Telethon connection for supplier bots + AutoAds)
           (
@@ -103,8 +124,8 @@ jobs:
 
           sleep 4
 
-          # Launch Bot 8 (@airenhatbot) and Bot 9 (@aicoderenhatbot) in parallel
-          for d in bot8 bot9; do
+          # Launch Bot 8 (@airenhatbot), Bot 9 (@aicoderenhatbot), and Bot 10 (Ủng hộ sinh viên) in parallel
+          for d in bot8 bot9 bot10; do
             (
               cd "$d"
               START_TIME=$SECONDS
@@ -119,7 +140,7 @@ jobs:
 
           sleep 19508
 
-          kill "$AUTOSAVE_PID" 2>/dev/null || true
+          kill "$AUTOSAVE_PID" "$HOTSYNC_PID" 2>/dev/null || true
           wait "$AUTOSAVE_PID" 2>/dev/null || true
 
           save_all_bot_states
@@ -137,27 +158,33 @@ jobs:
         run: |
           pkill -INT -f "python -X utf8" 2>/dev/null || true
           sleep 2
-          for d in bot8 bot9; do
+          for d in bot8 bot9 bot10; do
             if [ -d "$d/.git" ]; then
               (
                 cd "$d"
-                python -c "import os, sqlite3; c = sqlite3.connect('shop_data.db', timeout=15) if os.path.exists('shop_data.db') else None; c and (c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close())" 2>/dev/null || true
+                python -c "import os, sqlite3
+for dbn in ('shop_data.db', 'ungho_data.db'):
+    if os.path.exists(dbn):
+        c = sqlite3.connect(dbn, timeout=15)
+        c.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+        c.close()
+" 2>/dev/null || true
                 shopt -s nullglob
-                for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                for f in shop_data.db ungho_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
                     git add -f "$f" 2>/dev/null || true
                   fi
                 done
                 if ! git diff --cached --quiet; then
-                  git commit -m "chore: final zero-loss save shop_data.db & cache [skip ci]" || true
+                  git commit -m "chore: final zero-loss save db & cache [skip ci]" || true
                   if ! git pull --rebase -X ours origin main; then
                     git rebase --abort 2>/dev/null || true
                     git fetch origin main || true
                     git reset origin/main || true
-                    for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                    for f in shop_data.db ungho_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                       if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
                     done
-                    git commit -m "chore: final zero-loss save shop_data.db & cache [skip ci]" || true
+                    git commit -m "chore: final zero-loss save db & cache [skip ci]" || true
                   fi
                   git push origin main || true
                 fi
