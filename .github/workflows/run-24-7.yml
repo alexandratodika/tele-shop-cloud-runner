@@ -45,13 +45,7 @@ jobs:
             for d in bot8 bot9 bot10; do
               (
                 cd "$d"
-                python -c "import os, sqlite3
-for dbn in ('shop_data.db', 'ungho_data.db'):
-    if os.path.exists(dbn):
-        c = sqlite3.connect(dbn, timeout=15)
-        c.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-        c.close()
-" 2>/dev/null || true
+                python -c "import os, sqlite3; [(c := sqlite3.connect(f, timeout=15), c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close()) for f in ('shop_data.db', 'ungho_data.db') if os.path.exists(f)]" 2>/dev/null || true
                 shopt -s nullglob
                 for f in shop_data.db ungho_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
@@ -162,13 +156,7 @@ for dbn in ('shop_data.db', 'ungho_data.db'):
             if [ -d "$d/.git" ]; then
               (
                 cd "$d"
-                python -c "import os, sqlite3
-for dbn in ('shop_data.db', 'ungho_data.db'):
-    if os.path.exists(dbn):
-        c = sqlite3.connect(dbn, timeout=15)
-        c.execute('PRAGMA wal_checkpoint(TRUNCATE)')
-        c.close()
-" 2>/dev/null || true
+                python -c "import os, sqlite3; [(c := sqlite3.connect(f, timeout=15), c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close()) for f in ('shop_data.db', 'ungho_data.db') if os.path.exists(f)]" 2>/dev/null || true
                 shopt -s nullglob
                 for f in shop_data.db ungho_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
