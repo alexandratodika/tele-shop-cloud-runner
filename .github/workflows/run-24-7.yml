@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Clone & Start All 8 Bots 24/7
+      - name: Clone & Start All 5 Bots 24/7
         env:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           PYTHONUTF8: "1"
@@ -36,23 +36,20 @@ jobs:
 
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/canboso-tele-shop-bot.git bot1
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/roboticvn-tele-shop-bot.git bot2
-          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/qcst-tele-shop-bot.git bot3
-          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/gmailsinhvien-tele-shop-bot.git bot4
-          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/skyworld-tele-shop-bot.git bot5
-          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/domdalton-tele-shop-bot.git bot6
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/hub-tele-shop-bot.git bot7
           git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/unified-tele-shop-bot.git bot8
+          git clone https://x-access-token:${PAT_TOKEN}@github.com/alexandratodika/kho9-tele-shop-bot.git bot9
 
           pip install --upgrade pip
-          pip install -r bot1/requirements.txt -r bot4/requirements.txt -r bot5/requirements.txt -r bot6/requirements.txt -r bot7/requirements.txt -r bot8/requirements.txt
+          pip install -r bot1/requirements.txt -r bot7/requirements.txt -r bot8/requirements.txt -r bot9/requirements.txt
 
           save_all_bot_states() {
-            for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7 bot8; do
+            for d in bot1 bot2 bot7 bot8 bot9; do
               (
                 cd "$d"
                 python -c "import os, sqlite3; c = sqlite3.connect('shop_data.db', timeout=15) if os.path.exists('shop_data.db') else None; c and (c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close())" 2>/dev/null || true
                 shopt -s nullglob
-                for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json gmailvip_cache.json skyworld_cache.json domdalton_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                   if [ -f "$f" ]; then
                     git add -f "$f" 2>/dev/null || true
                   fi
@@ -63,7 +60,7 @@ jobs:
                     git rebase --abort 2>/dev/null || true
                     git fetch origin main || true
                     git reset --soft origin/main || true
-                    for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                    for f in shop_data.db products_cache.json canboso_cache.json roboticvn_cache.json gmailvip_cache.json skyworld_cache.json domdalton_cache.json auto_ads_config.json ads_userbot.session auto_ads_media.*; do
                       if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
                     done
                     git commit -m "chore: auto-save shop_data.db & cache [skip ci]" || true
@@ -74,7 +71,7 @@ jobs:
             done
           }
 
-          # Auto-save database & synced catalog cache loop every 180 seconds for all 8 bots
+          # Auto-save database & synced catalog cache loop every 180 seconds for all 5 bots
           (
             while true; do
               sleep 180
@@ -82,6 +79,18 @@ jobs:
             done
           ) &
           AUTOSAVE_PID=$!
+
+          # Hot-sync bot9/.env if BOT_TOKEN is still blank so Kho 9 auto-starts the instant BOT_TOKEN is pushed
+          (
+            while ! grep -q '^BOT_TOKEN=.*[0-9]:' bot9/.env 2>/dev/null; do
+              sleep 30
+              (
+                cd bot9
+                git fetch origin main 2>/dev/null && git checkout origin/main -- .env 2>/dev/null || true
+              )
+            done
+          ) &
+          HOTSYNC_PID=$!
 
           # Launch Shared Userbot Hub (single Telethon connection for supplier bots)
           (
@@ -97,8 +106,8 @@ jobs:
 
           sleep 4
 
-          # Launch Bot 1..Bot 8 in parallel with auto-restart loops
-          for d in bot1 bot2 bot3 bot4 bot5 bot6 bot7 bot8; do
+          # Launch Bot 1, Bot 2, Bot 7, Bot 8, Bot 9 in parallel with auto-restart loops
+          for d in bot1 bot2 bot7 bot8 bot9; do
             (
               cd "$d"
               START_TIME=$SECONDS
@@ -113,6 +122,7 @@ jobs:
 
           sleep 19508
 
+          kill "$HOTSYNC_PID" 2>/dev/null || true
           kill "$AUTOSAVE_PID" 2>/dev/null || true
           wait "$AUTOSAVE_PID" 2>/dev/null || true
 
