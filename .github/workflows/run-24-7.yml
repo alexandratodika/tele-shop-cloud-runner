@@ -129,3 +129,38 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/alexandratodika/tele-shop-cloud-runner/actions/workflows/run-24-7.yml/dispatches \
             -d '{"ref":"main"}' || true
+
+      - name: Final Zero-Loss DB & Session Save (On Exit or Cancel)
+        if: always()
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          pkill -INT -f "python -X utf8" 2>/dev/null || true
+          sleep 2
+          for d in bot8 bot9; do
+            if [ -d "$d/.git" ]; then
+              (
+                cd "$d"
+                python -c "import os, sqlite3; c = sqlite3.connect('shop_data.db', timeout=15) if os.path.exists('shop_data.db') else None; c and (c.execute('PRAGMA wal_checkpoint(TRUNCATE)'), c.close())" 2>/dev/null || true
+                shopt -s nullglob
+                for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                  if [ -f "$f" ]; then
+                    git add -f "$f" 2>/dev/null || true
+                  fi
+                done
+                if ! git diff --cached --quiet; then
+                  git commit -m "chore: final zero-loss save shop_data.db & cache [skip ci]" || true
+                  if ! git pull --rebase -X ours origin main; then
+                    git rebase --abort 2>/dev/null || true
+                    git fetch origin main || true
+                    git reset origin/main || true
+                    for f in shop_data.db canboso_cache.json roboticvn_cache.json skyworld_cache.json domdalton_cache.json thomap_userbot.session auto_ads_config.json ads_userbot.session auto_ads_media.*; do
+                      if [ -f "$f" ]; then git add -f "$f" 2>/dev/null || true; fi
+                    done
+                    git commit -m "chore: final zero-loss save shop_data.db & cache [skip ci]" || true
+                  fi
+                  git push origin main || true
+                fi
+              )
+            fi
+          done
