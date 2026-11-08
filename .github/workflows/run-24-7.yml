@@ -91,16 +91,7 @@ jobs:
           ) &
           HOTSYNC_PID=$!
 
-          (
-            cd bot9
-            START_TIME=$SECONDS
-            while [ $((SECONDS - START_TIME)) -lt 19500 ]; do
-              REMAINING=$((19500 - (SECONDS - START_TIME)))
-              if [ $REMAINING -le 0 ]; then break; fi
-              timeout --signal=SIGINT ${REMAINING}s python -X utf8 redirect_bots.py >>/tmp/runtime.log 2>&1 || true
-              sleep 3
-            done
-          ) &
+          
 
           sleep 2
 
